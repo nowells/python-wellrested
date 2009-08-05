@@ -17,45 +17,53 @@ class Response(object):
     def __repr__(self):
         return '<Response %s>' % self.__dict__
 
-class Connection(object):
-    def __init__(self, base_url, username=None, password=None, cache=None, timeout=None, proxy_info=None):
+class BaseConnection(object):
+    def __init__(self, base_url, username=None, password=None):
         self.base_url = base_url
         self.username = username
-
+        self.password = password
         self.url = urlparse.urlparse(base_url)
-
         (scheme, netloc, path, query, fragment) = urlparse.urlsplit(base_url)
-
         self.scheme = scheme
         self.host = netloc
         self.path = path
-
-        # Create Http class with support for Digest HTTP Authentication, if necessary
-        self._conn = httplib2.Http(cache=cache, timeout=timeout, proxy_info=proxy_info)
-        self._conn.follow_all_redirects = True
-
-        if username and password:
-            self._conn.add_credentials(username, password)
 
     def get(self, resource, args=None, headers={}):
         return self._request(resource, "get", args, headers=headers)
 
     def delete(self, resource, args=None, headers={}):
-        return self._request(resource, "delete", args, headers=headers)
+        return self._handle_request(resource, "delete", args, headers=headers)
 
     def head(self, resource, args=None, headers={}):
-        return self._request(resource, "head", args, headers=headers)
+        return self._handle_request(resource, "head", args, headers=headers)
 
     def post(self, resource, args=None, body=None, filename=None, headers={}):
-        return self._request(resource, "post", args , body=body, filename=filename, headers=headers)
+        return self._handle_request(resource, "post", args , body=body, filename=filename, headers=headers)
 
     def put(self, resource, args=None, body=None, filename=None, headers={}):
-        return self._request(resource, "put", args , body=body, filename=filename, headers=headers)
+        return self._handle_request(resource, "put", args , body=body, filename=filename, headers=headers)
 
     def _get_content_type(self, filename):
         return mimetypes.guess_type(filename)[0] or 'application/octet-stream'
 
-    def _request(self, resource, method="get", args=None, body=None, filename=None, headers={}):
+    def _handle_request(self, resource, method="get", args=None, body=None, filename=None, headers={}):
+        raise NotImplementedError
+
+class Connection(BaseConnection):
+    def __init__(self, *args, **kwargs):
+        cache = kwargs.pop('cache')
+        timeout = kwargs.pop('cache')
+        proxy_info = kwargs.pop('proxy_info')
+
+        super(Connection, self).__init__(*args, **kwargs)
+
+        self._conn = httplib2.Http(cache=cache, timeout=timeout, proxy_info=proxy_info)
+        self._conn.follow_all_redirects = True
+
+        if self.username and self.password:
+            self._conn.add_credentials(self.username, self.password)
+
+    def _handle_request(self, resource, method="get", args=None, body=None, filename=None, headers={}):
         params = None
         path = resource
         headers['User-Agent'] = 'Basic Agent'
