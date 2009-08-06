@@ -16,7 +16,7 @@ class RestClient(object):
     def __init__(self, base_url, username=None, password=None, connection_class=None, **kwargs):
         if connection_class is None:
             connection_class = Connection
-        self._connection = Connection(base_url, username, password, **kwargs)
+        self._connection = connection_class(base_url, username, password, **kwargs)
 
     def get(self, resource, args=None, data=None, headers=None):
         return self._request(resource, 'get', args=args, data=data, headers=headers)
