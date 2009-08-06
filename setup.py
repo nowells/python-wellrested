@@ -11,4 +11,13 @@ setup(
     url='http://github.com/nowells/python-wellrested/',
     packages=['wellrested', 'wellrested.connections'],
     install_requires=['httplib2'],
+    classifiers=[
+        'Development Status :: 4 - Beta',
+        'Environment :: Web Environment',
+        'Intended Audience :: Developers',
+        'Operating System :: OS Independent',
+        'Programming Language :: Python',
+        'Topic :: Internet :: WWW/HTTP',
+        'Topic :: Software Development :: Libraries :: Python Modules',
+        ]
     )
