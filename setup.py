@@ -1,7 +1,6 @@
-import os
 from setuptools import setup
 
-version = '0.1.0'
+version = '0.1.1'
 
 setup(
     name='python-wellrested',
@@ -10,6 +9,6 @@ setup(
     author='Nowell Strite',
     author_email='nowell@strite.org',
     url='http://github.com/nowells/python-wellrested/',
-    packages=['wellrested'],
+    packages=['wellrested', 'wellrested.connections'],
     install_requires=['httplib2'],
     )
