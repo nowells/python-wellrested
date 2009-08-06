@@ -1,11 +1,14 @@
 import base64
 import httplib2
+import logging
 import mimetypes
 import mimetools
 import urllib
 import urlparse
 
 HTTP_STATUS_OK = '200'
+
+logger = logging.getLogger(__name__)
 
 class RestClient(object):
     content_type = None
@@ -112,8 +115,8 @@ class Connection(BaseConnection):
         CRLF = u'\r\n'
 
         if body:
-            if not headers.get('Content-Type', content_type):
-                headers['Content-Type'] = 'text/plain'
+            if not headers.get('Content-Type', None):
+                headers['Content-Type'] = content_type or 'text/plain'
             headers['Content-Length'] = str(len(body))
         else:
             if headers.has_key('Content-Length'):
