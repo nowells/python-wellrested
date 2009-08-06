@@ -4,18 +4,70 @@ import mimetypes
 import mimetools
 import urllib
 import urlparse
-try:
-    from cStringIO import StringIO
-except ImportError:
-    from StringIO import StringIO
+
+HTTP_STATUS_OK = '200'
+
+class RestClient(object):
+    content_type = None
+
+    def __init__(self, base_url, username=None, password=None, connection_class=None, **kwargs):
+        if connection_class is None:
+            connection_class = Connection
+        self._connection = Connection(base_url, username, password, **kwargs)
+
+    def get(self, resource, args=None, data=None, headers=None):
+        return self._request(resource, 'get', args=args, data=data, headers=headers)
+
+    def put(self, resource, args=None, data=None, headers=None):
+        return self._request(resource, 'put', args=args, data=data, headers=headers)
+
+    def delete(self, resource, args=None, data=None, headers=None):
+        return self._request(resource, 'delete', args=args, data=data, headers=headers)
+
+    def post(self, resource, args=None, data=None, headers=None):
+        return self._request(resource, 'post', args=args, data=data, headers=headers)
+
+    def _request(self, resource, method, args=None, data=None, headers=None):
+        data = None
+        body = self._serialize(data)
+        headers, content = self._connection.request(resource, method, args=args, body=body, headers=headers, content_type=self.content_type)
+        if headers.get('status') == HTTP_STATUS_OK:
+            data = self._deserialize(content)
+        return Response(headers, content, data)
+
+    def _serialize(self, data):
+        return unicode(data)
+
+    def _deserialize(self, data):
+        return unicode(data)
+
+class JsonRestClient(RestClient):
+    content_type = 'application/json'
+
+    def _serialize(self, data):
+        if data:
+            import simplejson
+            return simplejson.dumps(data)
+        return None
+
+    def _deserialize(self, data):
+        if data:
+            import simplejson
+            return simplejson.loads(data)
+        return None
+
+class XmlRestClient(RestClient):
+    content_type = 'text/xml'
 
 class Response(object):
-    def __init__(self, headers, content):
+    def __init__(self, headers, content, data):
         self.headers = headers
         self.content = content
+        self.data = data
+        self.status_code = int(headers.get('status', '500'))
 
     def __repr__(self):
-        return '<Response %s>' % self.__dict__
+        return '<Response %s: %s>' % (self.status_code, self.__dict__)
 
 class BaseConnection(object):
     def __init__(self, base_url, username=None, password=None):
@@ -28,32 +80,17 @@ class BaseConnection(object):
         self.host = netloc
         self.path = path
 
-    def get(self, resource, args=None, headers={}):
-        return self._request(resource, "get", args, headers=headers)
-
-    def delete(self, resource, args=None, headers={}):
-        return self._handle_request(resource, "delete", args, headers=headers)
-
-    def head(self, resource, args=None, headers={}):
-        return self._handle_request(resource, "head", args, headers=headers)
-
-    def post(self, resource, args=None, body=None, filename=None, headers={}):
-        return self._handle_request(resource, "post", args , body=body, filename=filename, headers=headers)
-
-    def put(self, resource, args=None, body=None, filename=None, headers={}):
-        return self._handle_request(resource, "put", args , body=body, filename=filename, headers=headers)
-
     def _get_content_type(self, filename):
         return mimetypes.guess_type(filename)[0] or 'application/octet-stream'
 
-    def _handle_request(self, resource, method="get", args=None, body=None, filename=None, headers={}):
+    def request(self, resource, method="get", args=None, body=None, headers=None, content_type=None):
         raise NotImplementedError
 
 class Connection(BaseConnection):
     def __init__(self, *args, **kwargs):
-        cache = kwargs.pop('cache')
-        timeout = kwargs.pop('cache')
-        proxy_info = kwargs.pop('proxy_info')
+        cache = kwargs.pop('cache', None)
+        timeout = kwargs.pop('cache', None)
+        proxy_info = kwargs.pop('proxy_info', None)
 
         super(Connection, self).__init__(*args, **kwargs)
 
@@ -63,7 +100,10 @@ class Connection(BaseConnection):
         if self.username and self.password:
             self._conn.add_credentials(self.username, self.password)
 
-    def _handle_request(self, resource, method="get", args=None, body=None, filename=None, headers={}):
+    def request(self, resource, method, args=None, body=None, headers=None, content_type=None):
+        if headers is None:
+            headers = {}
+
         params = None
         path = resource
         headers['User-Agent'] = 'Basic Agent'
@@ -71,39 +111,22 @@ class Connection(BaseConnection):
         BOUNDARY = mimetools.choose_boundary()
         CRLF = u'\r\n'
 
-        if filename and body:
-            content_type = self._get_content_type(filename)
-            headers['Content-Type']='multipart/form-data; boundary='+BOUNDARY
-            encode_string = StringIO()
-            encode_string.write(CRLF)
-            encode_string.write(u'--' + BOUNDARY + CRLF)
-            encode_string.write(u'Content-Disposition: form-data; name="file"; filename="%s"' % filename)
-            encode_string.write(CRLF)
-            encode_string.write(u'Content-Type: %s' % content_type + CRLF)
-            encode_string.write(CRLF)
-            encode_string.write(body)
-            encode_string.write(CRLF)
-            encode_string.write(u'--' + BOUNDARY + u'--' + CRLF)
-
-            body = encode_string.getvalue()
-            headers['Content-Length'] = str(len(body))
-        elif body:
-            if not headers.get('Content-Type', None):
-                headers['Content-Type']='text/xml'
+        if body:
+            if not headers.get('Content-Type', content_type):
+                headers['Content-Type'] = 'text/plain'
             headers['Content-Length'] = str(len(body))
         else:
             if headers.has_key('Content-Length'):
                 del headers['Content-Length']
 
-            headers['Content-Type']='text/plain'
+            headers['Content-Type'] = 'text/plain'
 
             if args:
                 if method == "get":
                     path += u"?" + urllib.urlencode(args)
                 elif method == "put" or method == "post":
-                    headers['Content-Type']='application/x-www-form-urlencoded'
+                    headers['Content-Type'] = 'application/x-www-form-urlencoded'
                     body = urllib.urlencode(args)
-
 
         request_path = []
         # Normalise the / in the url path
@@ -117,6 +140,6 @@ class Connection(BaseConnection):
             else:
                 request_path.append(path)
 
-        resp, content = self._conn.request(u"%s://%s%s" % (self.scheme, self.host, u'/'.join(request_path)), method.upper(), body=body, headers=headers)
-        # TODO trust the return encoding type in the decode?
-        return Response(resp, content)
+        response_headers, response_content = self._conn.request(u"%s://%s%s" % (self.scheme, self.host, u'/'.join(request_path)), method.upper(), body=body, headers=headers)
+        return response_headers, response_content
+
