@@ -35,7 +35,7 @@ class RestClient(object):
         request_body = self._serialize(data)
         response_headers, response_content = self._connection.request(resource, method, args=args, body=request_body, headers=headers, content_type=self.content_type)
         if response_headers.get('status') == HTTP_STATUS_OK:
-            data = self._deserialize(response_content)
+            response_data = self._deserialize(response_content)
         return Response(response_headers, response_content, response_data)
 
     def _serialize(self, data):
