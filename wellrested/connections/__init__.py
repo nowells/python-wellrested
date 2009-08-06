@@ -28,12 +28,12 @@ class RestClient(object):
         return self._request(resource, 'post', args=args, data=data, headers=headers)
 
     def _request(self, resource, method, args=None, data=None, headers=None):
-        data = None
-        body = self._serialize(data)
-        headers, content = self._connection.request(resource, method, args=args, body=body, headers=headers, content_type=self.content_type)
-        if headers.get('status') == HTTP_STATUS_OK:
-            data = self._deserialize(content)
-        return Response(headers, content, data)
+        response_data = None
+        request_body = self._serialize(data)
+        response_headers, response_content = self._connection.request(resource, method, args=args, body=request_body, headers=headers, content_type=self.content_type)
+        if response_headers.get('status') == HTTP_STATUS_OK:
+            data = self._deserialize(response_content)
+        return Response(response_headers, response_content, response_data)
 
     def _serialize(self, data):
         return unicode(data)
