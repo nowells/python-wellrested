@@ -1,1 +1,1 @@
-from wellrested.connections import Connection
+from wellrested.connections import RestClient, JsonRestClient
