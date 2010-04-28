@@ -10,30 +10,40 @@ HTTP_STATUS_OK = '200'
 
 logger = logging.getLogger(__name__)
 
+
 class RestClient(object):
     content_type = None
 
-    def __init__(self, base_url, username=None, password=None, connection_class=None, **kwargs):
+    def __init__(self, base_url, username=None, password=None,
+                 connection_class=None, **kwargs):
         if connection_class is None:
             connection_class = Connection
-        self._connection = connection_class(base_url, username, password, **kwargs)
+        self._connection = connection_class(base_url, username, password,
+                                            **kwargs)
 
     def get(self, resource, args=None, data=None, headers=None):
-        return self._request(resource, 'get', args=args, data=data, headers=headers)
+        return self._request(resource, 'get', args=args, data=data,
+                             headers=headers)
 
     def put(self, resource, args=None, data=None, headers=None):
-        return self._request(resource, 'put', args=args, data=data, headers=headers)
+        return self._request(resource, 'put', args=args, data=data,
+                             headers=headers)
 
     def delete(self, resource, args=None, data=None, headers=None):
-        return self._request(resource, 'delete', args=args, data=data, headers=headers)
+        return self._request(resource, 'delete', args=args, data=data,
+                             headers=headers)
 
     def post(self, resource, args=None, data=None, headers=None):
-        return self._request(resource, 'post', args=args, data=data, headers=headers)
+        return self._request(resource, 'post', args=args, data=data,
+                             headers=headers)
 
     def _request(self, resource, method, args=None, data=None, headers=None):
         response_data = None
         request_body = self._serialize(data)
-        response_headers, response_content = self._connection.request(resource, method, args=args, body=request_body, headers=headers, content_type=self.content_type)
+        response_headers, response_content = \
+            self._connection.request(resource, method, args=args,
+                                     body=request_body, headers=headers,
+                                     content_type=self.content_type)
         if response_headers.get('status') == HTTP_STATUS_OK:
             response_data = self._deserialize(response_content)
         return Response(response_headers, response_content, response_data)
@@ -44,23 +54,40 @@ class RestClient(object):
     def _deserialize(self, data):
         return unicode(data)
 
+
 class JsonRestClient(RestClient):
     content_type = 'application/json'
 
     def _serialize(self, data):
         if data:
-            import simplejson
-            return simplejson.dumps(data)
+            try:
+                import simplejson as json
+            except ImportError:
+                try:
+                    import json
+                except ImportError:
+                    raise RuntimeError('simplejson not installed')
+
+            return json.dumps(data)
         return None
 
     def _deserialize(self, data):
         if data:
-            import simplejson
-            return simplejson.loads(data)
+            try:
+                import simplejson as json
+            except ImportError:
+                try:
+                    import json
+                except ImportError:
+                    raise RuntimeError('simplejson not installed')
+
+            return json.loads(data)
         return None
+
 
 class XmlRestClient(RestClient):
     content_type = 'text/xml'
+
 
 class Response(object):
     def __init__(self, headers, content, data):
@@ -71,6 +98,7 @@ class Response(object):
 
     def __repr__(self):
         return '<Response %s: %s>' % (self.status_code, self.__dict__)
+
 
 class BaseConnection(object):
     def __init__(self, base_url, username=None, password=None):
@@ -86,8 +114,10 @@ class BaseConnection(object):
     def _get_content_type(self, filename):
         return mimetypes.guess_type(filename)[0] or 'application/octet-stream'
 
-    def request(self, resource, method="get", args=None, body=None, headers=None, content_type=None):
+    def request(self, resource, method="get", args=None, body=None,
+                headers=None, content_type=None):
         raise NotImplementedError
+
 
 class Connection(BaseConnection):
     def __init__(self, *args, **kwargs):
@@ -97,13 +127,15 @@ class Connection(BaseConnection):
 
         super(Connection, self).__init__(*args, **kwargs)
 
-        self._conn = httplib2.Http(cache=cache, timeout=timeout, proxy_info=proxy_info)
+        self._conn = httplib2.Http(cache=cache, timeout=timeout,
+                                   proxy_info=proxy_info)
         self._conn.follow_all_redirects = True
 
         if self.username and self.password:
             self._conn.add_credentials(self.username, self.password)
 
-    def request(self, resource, method, args=None, body=None, headers=None, content_type=None):
+    def request(self, resource, method, args=None, body=None, headers=None,
+                content_type=None):
         if headers is None:
             headers = {}
 
@@ -119,7 +151,7 @@ class Connection(BaseConnection):
                 headers['Content-Type'] = content_type or 'text/plain'
             headers['Content-Length'] = str(len(body))
         else:
-            if headers.has_key('Content-Length'):
+            if 'Content-Length' in headers:
                 del headers['Content-Length']
 
             headers['Content-Type'] = 'text/plain'
@@ -128,7 +160,8 @@ class Connection(BaseConnection):
                 if method == "get":
                     path += u"?" + urllib.urlencode(args)
                 elif method == "put" or method == "post":
-                    headers['Content-Type'] = 'application/x-www-form-urlencoded'
+                    headers['Content-Type'] = \
+                        'application/x-www-form-urlencoded'
                     body = urllib.urlencode(args)
 
         request_path = []
@@ -143,6 +176,8 @@ class Connection(BaseConnection):
             else:
                 request_path.append(path)
 
-        response_headers, response_content = self._conn.request(u"%s://%s%s" % (self.scheme, self.host, u'/'.join(request_path)), method.upper(), body=body, headers=headers)
+        response_headers, response_content = \
+            self._conn.request(u"%s://%s%s" % (self.scheme, self.host,
+                               u'/'.join(request_path)), method.upper(),
+                               body=body, headers=headers)
         return response_headers, response_content
-
