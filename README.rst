@@ -59,3 +59,4 @@ The goal, as always, is to keep the client simple to use, adherent to relevant s
 Shortly after writing the first draft of python-wellrested, Nowell discovered py-restclient http://py-restclient.e-engura.org/, which seems to be a somewhat more mature client and the obvious other choice. There are some subtle api differences between the two clients, but they generally take the same basic approach to handling the RESTful API calls.
 
 Please feel free to use whatever client best suits your needs. And send a pull request on github if you make any improvements to this code.
+
