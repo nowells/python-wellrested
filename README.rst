@@ -1,7 +1,6 @@
-#############################
- python-wellrested
- A Simple RESTful client
-#############################
+##########################################
+ python-wellrested A Simple RESTful client
+##########################################
 
 Introduction
 ============
